@@ -1,0 +1,46 @@
+name: Hourly data update
+
+on:
+  schedule:
+    # Run every hour
+    - cron: '0 * * * *'
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to commit back to repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fetch latest data (last 2 days, append to CSV)
+        run: |
+          python fetch_tjrv_latest.py \
+            --days 2 \
+            --out data/tjrv_h2s.csv \
+            --append
+
+      - name: Regenerate dashboard HTML
+        run: |
+          python generate_html.py \
+            --csv data/tjrv_h2s.csv \
+            --out docs/index.html \
+            --template template.html
+
+      - name: Commit and push if data changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tjrv_h2s.csv docs/index.html
+          # Only commit if something actually changed
+          git diff --staged --quiet || git commit -m "data: hourly update $(date -u '+%Y-%m-%d %H:00 UTC')"
+          git push

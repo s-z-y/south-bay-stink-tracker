@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tijuana River Valley — H₂S Air Quality</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --green: #3a7d50;
+    --yellow: #c97b2a;
+    --orange: #c23b3b;
+  }
+
+  html[data-theme="dark"] {
+    --bg: #0d0f0e; --surface: #141716; --surface2: #1c1f1d; --border: #2a2e2c;
+    --text: #e8ebe9; --text2: #8a9490; --text3: #4d5552;
+    --nodata: #1e2220; --accent: #4eba78;
+    --stat-orange: #e06060; --stat-yellow: #d4903a; --stat-green: #4eba78;
+    --tip-bg: #272c2a; --tip-border: #404845; --tip-text: #e8ebe9;
+    --tip-muted: #7a8682; --tip-shadow: rgba(0,0,0,0.5);
+    --tip-orange: #d4903a; --tip-yellow: #c4943a; --tip-green: #4eba78; --tip-dim: #505855;
+  }
+
+  html[data-theme="light"] {
+    --bg: #f5f6f4; --surface: #ffffff; --surface2: #eaece9; --border: #d4d8d5;
+    --text: #1a1e1c; --text2: #5a6460; --text3: #9aa49f;
+    --nodata: #dde1de; --accent: #1e7a45;
+    --stat-orange: #b02a2a; --stat-yellow: #a05e10; --stat-green: #1e7a45;
+    --tip-bg: #ffffff; --tip-border: #b0b8b4; --tip-text: #1a1e1c;
+    --tip-muted: #6a7470; --tip-shadow: rgba(0,0,0,0.12);
+    --tip-orange: #a05e10; --tip-yellow: #8a6200; --tip-green: #1e7a45; --tip-dim: #9aa49f;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    html:not([data-theme]) {
+      --bg: #0d0f0e; --surface: #141716; --surface2: #1c1f1d; --border: #2a2e2c;
+      --text: #e8ebe9; --text2: #8a9490; --text3: #4d5552;
+      --nodata: #1e2220; --accent: #4eba78;
+      --stat-orange: #e06060; --stat-yellow: #d4903a; --stat-green: #4eba78;
+    --tip-bg: #272c2a; --tip-border: #404845; --tip-text: #e8ebe9;
+    --tip-muted: #7a8682; --tip-shadow: rgba(0,0,0,0.5);
+    --tip-orange: #d4903a; --tip-yellow: #c4943a; --tip-green: #4eba78; --tip-dim: #505855;
+    }
+  }
+
+  @media (prefers-color-scheme: light) {
+    html:not([data-theme]) {
+      --bg: #f5f6f4; --surface: #ffffff; --surface2: #eaece9; --border: #d4d8d5;
+      --text: #1a1e1c; --text2: #5a6460; --text3: #9aa49f;
+      --nodata: #dde1de; --accent: #1e7a45;
+      --stat-orange: #b02a2a; --stat-yellow: #a05e10; --stat-green: #1e7a45;
+    --tip-bg: #ffffff; --tip-border: #b0b8b4; --tip-text: #1a1e1c;
+    --tip-muted: #6a7470; --tip-shadow: rgba(0,0,0,0.12);
+    --tip-orange: #a05e10; --tip-yellow: #8a6200; --tip-green: #1e7a45; --tip-dim: #9aa49f;
+    }
+  }
+
+  html { background: var(--bg); color: var(--text); font-family: var(--sans); transition: background 0.2s, color 0.2s; }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+
+  header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  h1 strong { font-weight: 500; }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.6;
+    text-align: left;
+  }
+  .tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--tip-bg);
+    border: 1px solid var(--tip-border);
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--tip-text);
+    white-space: nowrap;
+    z-index: 200;
+    pointer-events: none;
+    min-width: 140px;
+    box-shadow: 0 4px 16px var(--tip-shadow);
+  }
+
+  .tip-date {
+    font-size: 10px;
+    color: var(--tip-muted);
+    margin-bottom: 5px;
+    letter-spacing: 0.04em;
+  }
+
+  .tip-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    line-height: 1.7;
+  }
+
+  .tip-key { color: var(--tip-muted); }
+  .tip-val { color: var(--tip-text); font-weight: 500; }
+  .tip-val.c-orange { color: var(--tip-orange); }
+  .tip-val.c-yellow { color: var(--tip-yellow); }
+  .tip-val.c-green  { color: var(--tip-green);  }
+  .tip-val.c-dim    { color: var(--tip-dim);    }
+
+  /* Gap notice */
+  .gap-row td {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    font-style: italic;
+    padding: 5px 0 5px 42px;
+  }
+
+  /* Stats bar */
+  /* Stats — inline strip */
+  .stats-wrap {
+    margin-bottom: 20px;
+  }
+
+  .stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+
+  .view-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .view-btn:hover { color: var(--text2); }
+
+  .view-btn.active {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .stats {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-right: 1px solid var(--border);
+    flex: 1;
+    min-width: 0;
+  }
+
+  .stat:last-child { border-right: none; }
+
+  .stat-swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .stat-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex-shrink: 0;
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text2);
+    white-space: nowrap;
+  }
+
+  .stat-range {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+  }
+
+  .stat-unit {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text3);
+    margin-left: 4px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  /* Hourly chart */
+  .chart-section { }
+
+  .chart-heading {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .chart-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 140px;
+  }
+
+  .chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .chart-wrap { position: relative; }
+
+  .chart-tooltip {
+    display: none;
+    position: absolute;
+    background: var(--tip-bg);
+    border: 1px solid var(--tip-border);
+    border-radius: 4px;
+    padding: 5px 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--tip-text);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 200;
+    box-shadow: 0 4px 12px var(--tip-shadow);
+    transform: translateX(-50%);
+  }
+  /* Footer */
+  footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  footer p { margin: 0; }
+
+  footer a { color: var(--text2); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  .footer-sep { color: var(--border); }
+
+  .data-note {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 24px clamp(12px, 3.5vw, 32px) 64px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  h1 strong { font-weight: 500; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .loc-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .loc-btn:hover { border-color: var(--text3); color: var(--text); }
+
+  .loc-btn.active {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Calendar */
+  #calendar { }
+  #calendar.has-selection .cell:not(.selected):not(.empty)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    opacity: 0.65;
+    border-radius: 2px;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  #calendar.has-selection .cell.selected { transition: opacity 0.15s; }
+  #calendar .cell { transition: opacity 0.15s; }
+
+  .year-group { margin-bottom: 28px; }
+
+  .year-heading {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .year-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .cal-table { width: 100%; border-collapse: separate; border-spacing: 0.25vw; }
+
+  .col-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text3);
+    text-align: center;
+    padding-bottom: 6px;
+    font-weight: 400;
+    width: calc(100% / 32);
+  }
+
+  .month-label-cell {
+    font-family: var(--mono);
+    font-size: clamp(7px, 1vw, 10px);
+    font-weight: 500;
+    color: var(--text2);
+    text-align: right;
+    padding-right: clamp(2px, 1vw, 10px);
+    padding-bottom: 3px;
+    white-space: nowrap;
+    vertical-align: middle;
+    width: clamp(18px, 3.5vw, 32px);
+    letter-spacing: 0.04em;
+  }
+
+  .day-td { padding: 0; vertical-align: middle; }
+
+  .cell {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 8%;
+    display: block;
+    position: relative;
+    cursor: default;
+    transition: transform 0.1s, filter 0.1s;
+  }
+
+  .cell:hover { transform: scale(1.4); z-index: 10; filter: brightness(1.3); }
+  .cell.selected { box-shadow: 0 0 0 2px var(--accent); z-index: 5; }
+  .cell:hover .tip { display: block; }
+
+  .cell.green  { background: var(--green); }
+  .cell.yellow { background: var(--yellow); }
+  .cell.orange { background: var(--orange); }
+  .cell.nodata { background: var(--nodata); }
+  .cell.empty  { background: transparent; cursor: default; }
+
+  /* Footer */
+  footer {
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  footer p { margin: 0; }
+  footer a { color: var(--text2); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  /* ── 2-column stats: 601–750px ── */
+  @media (max-width: 750px) and (min-width: 601px) {
+    .stats { flex-wrap: wrap !important; overflow: hidden; }
+    .stat {
+      flex: 0 0 50% !important;
+      width: 50% !important;
+      max-width: 50% !important;
+      min-width: 0 !important;
+      box-sizing: border-box;
+      border-right: none !important;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 10px;
+    }
+    .stat:nth-child(odd) { border-right: 1px solid var(--border) !important; }
+    .stat.stat-peak {
+      flex: 0 0 100% !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border-right: none !important;
+    }
+    .stat:last-child { border-bottom: none; }
+    .stat-label { font-size: 10px; }
+    .stat-range { font-size: 10px; }
+    .stat-unit  { font-size: 10px; }
+    .stat-value { font-size: 14px; }
+    .stat-swatch { width: 7px; height: 7px; }
+  }
+
+  /* ── Medium screens 751–975px: 2-col stats with peak spanning ── */
+  @media (max-width: 975px) and (min-width: 751px) {
+    .stats { flex-wrap: wrap !important; overflow: hidden; }
+    .stat {
+      flex: 0 0 50% !important;
+      width: 50% !important;
+      max-width: 50% !important;
+      min-width: 0 !important;
+      box-sizing: border-box;
+      border-right: none !important;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+    .stat:nth-child(odd) { border-right: 1px solid var(--border) !important; }
+    .stat.stat-peak {
+      flex: 0 0 100% !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      border-right: none !important;
+    }
+    .stat:last-child { border-bottom: none; }
+    .stat-label { font-size: 10px; }
+    .stat-range { font-size: 10px; }
+    .stat-unit  { font-size: 10px; }
+    .stat-value { font-size: 14px; }
+    .stat-swatch { width: 7px; height: 7px; }
+  }
+
+  /* ── Mobile & narrow screens ── */
+  @media (max-width: 600px) {
+
+
+    .header-top { display: block; margin-bottom: 10px; }
+    .eyebrow { font-size: 10px; }
+    h1 { font-size: 22px; }
+
+    .toolbar { gap: 6px; margin-bottom: 12px; }
+    .loc-btn { padding: 5px 9px; font-size: 10px; }
+
+    /* Stats strip — single column on mobile */
+    .stats-wrap { margin-bottom: 16px; }
+    .stats {
+      flex-wrap: wrap !important;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .stat {
+      flex: 0 0 100% !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 0 !important;
+      box-sizing: border-box;
+      border-right: none !important;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+    }
+    .stat:last-child { border-bottom: none; }
+    .stat-value { font-size: 16px; }
+    .stat-label { font-size: 11px; }
+    .stat-range { font-size: 11px; }
+    .stat-unit  { font-size: 11px; }
+
+    .stats-header { gap: 2px; }
+    .view-btn { padding: 3px 6px; font-size: 9px; }
+
+    .chart-wrap { height: 110px; }
+
+    .col-label { font-size: 8px; padding-bottom: 4px; }
+    .year-heading { font-size: 10px; margin-bottom: 8px; }
+    .year-group { margin-bottom: 20px; }
+    .gap-row td { font-size: 9px; padding-left: 28px; }
+
+    footer p { font-size: 12px; }
+  }
+
+  @media (max-width: 500px) {
+    .col-label { display: none; }
+    .day-td { padding: 0; }
+  }
+
+  @media (max-width: 450px) {
+    .day-td { padding: 0; }
+    .year-heading { font-size: 9px; }
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="eyebrow">Visualizing Tijuana River Valley H₂S Air Pollution Problem</div>
+  </div>
+  <h1>South Bay <strong>Stink</strong> Tracker</h1>
+  <p class="subtitle">When the South Bay smells like rotten eggs, the Tijuana River is usually to blame. Daily peak hydrogen sulfide (H₂S) readings from three community monitors near the Tijuana River. Color shows the highest hourly average each day. Learn more about the issue and monitoring program on the <a href="https://www.sdapcd.org/content/sdapcd/about/tj-river-valley/tjrv-air-quality-monitoring.html" target="_blank" style="color:inherit;text-decoration:underline">SDAPCD Tijuana River Valley page</a>.</p>
+</header>
+
+<div class="toolbar">
+  <div class="controls" id="loc-controls"></div>
+</div>
+
+<div class="stats-wrap">
+  <div class="stats-header" id="stats-header">
+    <button class="view-btn active" data-view="days">days</button>
+    <button class="view-btn" data-view="pct-days">% days</button>
+    <button class="view-btn" data-view="pct-samples">% samples</button>
+  </div>
+  <div class="stats" id="stats"></div>
+</div>
+
+<div class="chart-section">
+  <div class="chart-heading">avg ppb by hour of day</div>
+  <div class="chart-wrap">
+    <canvas id="hourly-chart"></canvas>
+    <div class="chart-tooltip" id="chart-tooltip"></div>
+  </div>
+</div>
+
+<div id="calendar"></div>
+
+<footer>
+  <p class="subtitle">Data source: <a href="https://www.sdapcd.org/content/sdapcd/about/tj-river-valley/tjrv-air-quality-monitoring.html" target="_blank" style="color:inherit">San Diego Air Pollution Control District</a> · Hourly averages in ppb · <span style="opacity:0.6">last updated {{SNAPSHOT_DATE}} · <span style="opacity:0.5">your theme and station preference are saved in your browser</span></span></p>
+  <div class="stats-header" style="margin-top:20px;justify-content:flex-start" id="theme-toggle" role="group" aria-label="Color theme">
+    <button class="view-btn" id="btn-light">Light</button>
+    <button class="view-btn" id="btn-system">Auto</button>
+    <button class="view-btn" id="btn-dark">Dark</button>
+  </div>
+</footer>
+
+<script>
+{{DATA_BLOCK}}
+const LOCATIONS = ['IB CIVIC CTR', 'NESTOR - BES', 'SAN YSIDRO'];
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let activeLoc = localStorage.getItem('tjrv-station') || 'NESTOR - BES';
+let selectedDay = null;
+
+function classify(v) {
+  if (v === null || v === undefined) return 'nodata';
+  if (v >= 30) return 'orange';
+  if (v >= 5)  return 'yellow';
+  return 'green';
+}
+
+function key(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+function getMonthsForLoc(loc) {
+  const dates = Object.keys(DATA[loc]).sort();
+  if (!dates.length) return [];
+  const [sy, sm] = dates[0].split('-').map(Number);
+  const [ey, em] = dates[dates.length-1].split('-').map(Number);
+  const months = [];
+  let y = sy, m = sm - 1;
+  while (y < ey || (y === ey && m <= em - 1)) {
+    months.push([y, m]);
+    m++;
+    if (m > 11) { m = 0; y++; }
+  }
+  return months.reverse();
+}
+
+let activeStatsView = 'days';
+let activeDayStatsView = null; // null = use smart default
+
+function buildStats(loc) {
+  const days = DATA[loc];
+  const vals = Object.values(days);
+
+  // Day counts
+  const dOrange = vals.filter(v => v >= 30).length;
+  const dYellow = vals.filter(v => v >= 5 && v < 30).length;
+  const dGreen  = vals.filter(v => v < 5).length;
+  const allDays = Object.keys(days).sort();
+  const spanStart = new Date(allDays[0]);
+  const spanEnd   = new Date(allDays[allDays.length - 1]);
+  let spanDays = 0, dNodata = 0;
+  for (let d = new Date(spanStart); d <= spanEnd; d.setDate(d.getDate() + 1)) {
+    spanDays++;
+    if (days[d.toISOString().slice(0, 10)] === undefined) dNodata++;
+  }
+  const totalDays = dOrange + dYellow + dGreen + dNodata;
+
+  // Sample counts
+  const s = SAMPLES[loc];
+  const sTotal   = s.total;
+  const sNodata  = s.nodata;
+  const sOrange  = s.orange;
+  const sYellow  = s.yellow;
+  const sGreen   = s.green;
+  const sRecorded = sTotal - sNodata;
+
+  const max    = Math.max(...vals);
+  const maxDay = Object.keys(days).find(k => days[k] === max);
+
+  const pct = (n, total) => total > 0 ? (n / total * 100).toFixed(1) : '0.0';
+
+  // Build value strings per view
+  let vOrange, vYellow, vGreen, vNodata, uOrange, uYellow, uGreen, uNodata;
+  if (activeStatsView === 'days') {
+    vOrange = dOrange; vYellow = dYellow; vGreen = dGreen; vNodata = dNodata;
+    uOrange = uYellow = uGreen = uNodata = 'days';
+  } else if (activeStatsView === 'pct-days') {
+    vOrange = pct(dOrange, totalDays); vYellow = pct(dYellow, totalDays);
+    vGreen  = pct(dGreen,  totalDays); vNodata = pct(dNodata, totalDays);
+    uOrange = uYellow = uGreen = uNodata = '%';
+  } else {
+    vOrange = pct(sOrange, sRecorded); vYellow = pct(sYellow, sRecorded);
+    vGreen  = pct(sGreen,  sRecorded); vNodata = pct(sNodata, sTotal);
+    uOrange = uYellow = uGreen = uNodata = '%';
+  }
+
+  const el = document.getElementById('stats');
+  el.innerHTML = `
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--orange)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">odor advisory</div>
+        <div class="stat-range">&gt; 30 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-orange)">${vOrange}<span class="stat-unit">${uOrange}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--yellow)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">noticeable</div>
+        <div class="stat-range">5–30 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-yellow)">${vYellow}<span class="stat-unit">${uYellow}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--green)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">no odor</div>
+        <div class="stat-range">≤ 5 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-green)">${vGreen}<span class="stat-unit">${uGreen}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--nodata)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">no data</div>
+        <div class="stat-range">missing</div>
+      </div>
+      <div class="stat-value" style="color:var(--text3)">${vNodata}<span class="stat-unit">${uNodata}</span></div>
+    </div>
+    <div class="stat stat-peak">
+      <div class="stat-stack">
+        <div class="stat-label">peak</div>
+        <div class="stat-range">${maxDay || '—'}</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-orange)">${max}<span class="stat-unit">ppb</span></div>
+    </div>
+  `;
+}
+
+// View buttons wired via rewireViewButtons() called from renderViewButtons()
+rewireViewButtons();
+
+function buildCalendar(loc) {
+  const months = getMonthsForLoc(loc);
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+
+  // Group by year
+  const byYear = {};
+  months.forEach(([y, m]) => {
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(m);
+  });
+
+  Object.entries(byYear).reverse().forEach(([year, mlist]) => {
+    const yg = document.createElement('div');
+    yg.className = 'year-group';
+
+    const yh = document.createElement('div');
+    yh.className = 'year-heading';
+    yh.textContent = year;
+    yg.appendChild(yh);
+
+    const table = document.createElement('table');
+    table.className = 'cal-table';
+
+    // Header row
+    const thead = document.createElement('thead');
+    const hrow = document.createElement('tr');
+    const blank = document.createElement('th');
+    blank.style.width = '36px';
+    hrow.appendChild(blank);
+    for (let d = 1; d <= 31; d++) {
+      const th = document.createElement('th');
+      th.className = 'col-label';
+      th.textContent = d;
+      hrow.appendChild(th);
+    }
+    thead.appendChild(hrow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    let prevMonth = null;
+
+    mlist.forEach(m => {
+      // Gap notice between non-consecutive months (reversed order — check backward)
+      if (prevMonth !== null && m !== prevMonth - 1 && !(prevMonth === 0 && m === 11)) {
+        const gapRow = document.createElement('tr');
+        gapRow.className = 'gap-row';
+        const gapTd = document.createElement('td');
+        gapTd.colSpan = 32;
+        const older = `${MON[m]} ${year}`;
+        const newer = prevMonth === 0 ? `Jan ${year}` : `${MON[prevMonth]} ${year}`;
+        gapTd.textContent = `↑ gap: ${older} → ${newer}`;
+        gapRow.appendChild(gapTd);
+        tbody.appendChild(gapRow);
+      }
+      prevMonth = m;
+
+      const daysInMonth = new Date(parseInt(year), m + 1, 0).getDate();
+      const tr = document.createElement('tr');
+
+      const ml = document.createElement('td');
+      ml.className = 'month-label-cell';
+      ml.textContent = MON[m];
+      tr.appendChild(ml);
+
+      for (let d = 1; d <= 31; d++) {
+        const td = document.createElement('td');
+        td.className = 'day-td';
+        if (d > daysInMonth) {
+          const c = document.createElement('div');
+          c.className = 'cell empty';
+          td.appendChild(c);
+        } else {
+          const k = key(parseInt(year), m, d);
+          const v = DATA[loc][k] !== undefined ? DATA[loc][k] : null;
+          const c = document.createElement('div');
+          c.className = 'cell ' + classify(v);
+          c.dataset.date = k;
+          c.dataset.col = d;  // day of month 1-31, used for tooltip edge clamping
+          c.addEventListener('click', () => handleDayClick(k));
+          const tip = document.createElement('div');
+          tip.className = 'tip';
+          const dd = (DETAIL[loc] || {})[k];
+          if (dd) {
+            tip.innerHTML = `
+              <div class="tip-date">${k}</div>
+              <div class="tip-row"><span class="tip-key">peak</span><span class="tip-val c-orange">${dd.pk} ppb</span></div>
+              <div class="tip-row"><span class="tip-key">avg</span><span class="tip-val">${dd.av} ppb</span></div>
+              <div class="tip-row"><span class="tip-key">advisory</span><span class="tip-val c-orange">${dd.or}h</span></div>
+              <div class="tip-row"><span class="tip-key">noticeable</span><span class="tip-val c-yellow">${dd.ye}h</span></div>
+              <div class="tip-row"><span class="tip-key">no odor</span><span class="tip-val c-green">${dd.gr}h</span></div>
+              <div class="tip-row"><span class="tip-key">no data</span><span class="tip-val c-dim">${dd.nd}h</span></div>`;
+          } else {
+            tip.innerHTML = `<div class="tip-date">${k}</div><div class="tip-row"><span class="tip-key">no data</span></div>`;
+          }
+          // Clamp tooltip to avoid off-screen on first/last columns
+          if (d === 1) {
+            tip.style.left = '0';
+            tip.style.transform = 'translateX(0)';
+          } else if (d === 2) {
+            tip.style.left = '0';
+            tip.style.transform = 'translateX(-20%)';
+          } else if (d === 31) {
+            tip.style.left = 'auto';
+            tip.style.right = '0';
+            tip.style.transform = 'translateX(0)';
+          } else if (d === 30) {
+            tip.style.left = 'auto';
+            tip.style.right = '0';
+            tip.style.transform = 'translateX(20%)';
+          }
+          c.appendChild(tip);
+          td.appendChild(c);
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+    yg.appendChild(table);
+    cal.appendChild(yg);
+  });
+}
+
+function renderViewButtons() {
+  const header = document.getElementById('stats-header');
+  header.innerHTML = `
+    <button class="view-btn${activeStatsView === 'days' ? ' active' : ''}" data-view="days">days</button>
+    <button class="view-btn${activeStatsView === 'pct-days' ? ' active' : ''}" data-view="pct-days">% days</button>
+    <button class="view-btn${activeStatsView === 'pct-samples' ? ' active' : ''}" data-view="pct-samples">% samples</button>
+  `;
+  rewireViewButtons();
+}
+
+function renderDayViewButtons() {
+  const header = document.getElementById('stats-header');
+  header.innerHTML = `
+    <button class="view-btn${activeDayStatsView === 'hours' ? ' active' : ''}" data-view="hours">hours</button>
+    <button class="view-btn${activeDayStatsView === 'pct-samples' ? ' active' : ''}" data-view="pct-samples">% samples</button>
+  `;
+  rewireViewButtons();
+}
+
+function rewireViewButtons() {
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      if (selectedDay) {
+        activeDayStatsView = view;
+        renderDayViewButtons();
+        buildStatsForDay(selectedDay);
+      } else {
+        activeStatsView = view;
+        renderViewButtons();
+        buildStats(activeLoc);
+      }
+    });
+  });
+}
+
+function handleDayClick(date) {
+  if (selectedDay === date) {
+    // Unselect
+    selectedDay = null;
+    document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
+    document.getElementById('calendar').classList.remove('has-selection');
+    renderViewButtons();
+    buildStats(activeLoc);
+    buildChart(activeLoc);
+    document.querySelector('.chart-heading').textContent = 'avg ppb by hour of day';
+  } else {
+    // Select new day — determine activeDayStatsView if not set
+    if (!activeDayStatsView) {
+      activeDayStatsView = (activeStatsView === 'days') ? 'hours' : 'pct-samples';
+    }
+    selectedDay = date;
+    document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.cell[data-date="' + date + '"]').forEach(c => c.classList.add('selected'));
+    document.getElementById('calendar').classList.add('has-selection');
+    renderDayViewButtons();
+    buildStatsForDay(date);
+    buildChartForDay(date);
+    document.querySelector('.chart-heading').textContent = date + ' — hourly readings';
+  }
+}
+
+function buildStatsForDay(date) {
+  const hrs = (HOURLY_BY_DAY[activeLoc] || {})[date] || [];
+  const orange = hrs.filter(v => v !== null && v >= 30).length;
+  const yellow = hrs.filter(v => v !== null && v >= 5 && v < 30).length;
+  const green  = hrs.filter(v => v !== null && v < 5).length;
+  const nodata = hrs.filter(v => v === null).length;
+  const vals   = hrs.filter(v => v !== null);
+  const max    = vals.length ? Math.max(...vals) : 0;
+  const maxHr  = vals.length ? hrs.indexOf(max) : null;
+  const maxLabel = maxHr !== null ? maxHr + ':00' : '—';
+
+  const el = document.getElementById('stats');
+  const recorded = orange + yellow + green;
+
+  let vOrange, vYellow, vGreen, vNodata, unit;
+  if (activeDayStatsView === 'pct-samples') {
+    const pct = (n) => recorded > 0 ? (n / recorded * 100).toFixed(1) : '0.0';
+    vOrange = pct(orange); vYellow = pct(yellow); vGreen = pct(green);
+    vNodata = recorded + nodata > 0 ? (nodata / (recorded + nodata) * 100).toFixed(1) : '0.0';
+    unit = '%';
+  } else {
+    vOrange = orange; vYellow = yellow; vGreen = green; vNodata = nodata;
+    unit = 'hrs';
+  }
+
+  el.innerHTML = `
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--orange)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">odor advisory</div>
+        <div class="stat-range">&gt; 30 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-orange)">${vOrange}<span class="stat-unit">${unit}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--yellow)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">noticeable</div>
+        <div class="stat-range">5–30 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-yellow)">${vYellow}<span class="stat-unit">${unit}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--green)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">no odor</div>
+        <div class="stat-range">≤ 5 ppb</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-green)">${vGreen}<span class="stat-unit">${unit}</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-swatch" style="background:var(--nodata)"></div>
+      <div class="stat-stack">
+        <div class="stat-label">no data</div>
+        <div class="stat-range">missing</div>
+      </div>
+      <div class="stat-value" style="color:var(--text3)">${vNodata}<span class="stat-unit">${unit}</span></div>
+    </div>
+    <div class="stat stat-peak">
+      <div class="stat-stack">
+        <div class="stat-label">peak</div>
+        <div class="stat-range">${maxLabel}</div>
+      </div>
+      <div class="stat-value" style="color:var(--stat-orange)">${max}<span class="stat-unit">ppb</span></div>
+    </div>
+  `;
+}
+
+function buildChartForDay(date) {
+  const canvas = document.getElementById('hourly-chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const wrap = canvas.parentElement;
+  canvas.width  = wrap.clientWidth * dpr;
+  canvas.height = wrap.clientHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  const hrs = (HOURLY_BY_DAY[activeLoc] || {})[date] || [];
+  const vals = hrs.map(v => v);
+  const dataMax = Math.max(...vals.filter(v => v !== null), 5);
+  const maxVal = dataMax * 1.15;
+
+  const padL = 36, padR = 8, padT = 16, padB = 18;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW = chartW / 24;
+
+  const isDark = document.documentElement.dataset.theme === 'dark' ||
+    (!document.documentElement.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  // Dynamic grid lines — always show a line near the top and at meaningful thresholds
+  const baseGrid = [5, 10, 20, 30, 50, 100, 150, 200, 300, 400, 500];
+  // Include a grid line if maxVal exceeds the midpoint between that line and the next
+  const gridVals = (() => {
+    const fmt = (v) => {
+      const mag = v >= 1 ? 0 : -Math.floor(Math.log10(v));
+      return parseFloat(v.toFixed(mag + 1));
+    };
+    const candidates = [];
+    for (const mult of [10, 5, 2, 1]) {
+      for (let exp = 3; exp >= -2; exp--) {
+        const step = mult * Math.pow(10, exp);
+        if (step <= 0) continue;
+        const allLines = [];
+        for (let i = 1; i * step < dataMax * 2; i++) {
+          const v = fmt(i * step);
+          if (allLines.length === 0 || v !== allLines[allLines.length - 1]) allLines.push(v);
+        }
+        const filtered = allLines.filter((v, i) => {
+          const prev = i > 0 ? allLines[i - 1] : 0;
+          return dataMax >= prev + (v - prev) / 2;
+        });
+        if (filtered.length >= 2 && filtered.length <= 5)
+          candidates.push([step, filtered]);
+      }
+    }
+    if (!candidates.length) return [fmt(dataMax)];
+    candidates.sort((a, b) =>
+      Math.abs(a[1].length - 4) - Math.abs(b[1].length - 4) ||
+      b[1].length - a[1].length ||
+      b[0] - a[0]
+    );
+    return candidates[0][1];
+  })();
+
+  ctx.font = '9px DM Mono, monospace';
+  ctx.textAlign = 'right';
+  gridVals.forEach(gv => {
+    const gy = padT + chartH - (gv / maxVal) * chartH;
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(padL, gy); ctx.lineTo(W - padR, gy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
+    ctx.fillText(gv, padL - 4, gy + 3);
+  });
+
+  vals.forEach((v, i) => {
+    if (v === null) return;
+    const x = padL + i * barW;
+    const bH = (v / maxVal) * chartH;
+    const y  = padT + chartH - bH;
+    let color;
+    if (v >= 30)     color = isDark ? '#c23b3b' : '#b03030';
+    else if (v >= 5) color = isDark ? '#c97b2a' : '#b06a20';
+    else             color = isDark ? '#3a7d50' : '#2e6840';
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x + 1, y, barW - 2, bH);
+    ctx.globalAlpha = 1;
+  });
+
+  // X labels — drawn on canvas, centered to each 3-hour bar group
+  const xLabels = ['12a','3a','6a','9a','12p','3p','6p','9p'];
+  ctx.font = '9px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
+  xLabels.forEach((lbl, i) => {
+    const hour = i * 3;
+    const x = padL + (hour + 0.5) * barW;
+    ctx.fillText(lbl, x, padT + chartH + 13);
+  });
+}
+
+// Hourly chart tooltip
+(function() {
+  const tooltip = document.getElementById('chart-tooltip');
+  const canvas  = document.getElementById('hourly-chart');
+
+  function getChartData() {
+    if (selectedDay) {
+      return (HOURLY_BY_DAY[activeLoc] || {})[selectedDay] || [];
+    }
+    const h = HOURLY[activeLoc] || {};
+    return Array.from({length: 24}, (_, i) => h[i] ?? null);
+  }
+
+  function getHourLabel(i) {
+    if (i === 0)  return '12 am';
+    if (i === 12) return '12 pm';
+    return i < 12 ? i + ' am' : (i - 12) + ' pm';
+  }
+
+  canvas.addEventListener('mousemove', e => {
+    const rect   = canvas.getBoundingClientRect();
+    const padL   = 36, padR = 8;
+    const chartW = rect.width - padL - padR;
+    const x      = e.clientX - rect.left - padL;
+    if (x < 0 || x > chartW) { tooltip.style.display = 'none'; return; }
+
+    const barW = chartW / 24;
+    const hour = Math.floor(x / barW);
+    if (hour < 0 || hour > 23) { tooltip.style.display = 'none'; return; }
+
+    const data = getChartData();
+    const val  = data[hour];
+
+    const label = getHourLabel(hour);
+    tooltip.innerHTML = val !== null && val !== undefined
+      ? `<span style="color:var(--tip-muted)">${label}</span>&ensp;<span style="font-weight:500">${val} ppb</span>`
+      : `<span style="color:var(--tip-muted)">${label}</span>&ensp;<span style="color:var(--tip-dim)">no data</span>`;
+
+    // Position centered above the bar
+    const barCenterX = padL + (hour + 0.5) * barW;
+    tooltip.style.left    = barCenterX + 'px';
+    tooltip.style.top     = (e.clientY - rect.top - 36) + 'px';
+    tooltip.style.display = 'block';
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    tooltip.style.display = 'none';
+  });
+})();
+
+function setLocation(loc) {
+  activeLoc = loc;
+  selectedDay = null;
+  document.getElementById('calendar').classList.remove('has-selection');
+  renderViewButtons();
+  localStorage.setItem('tjrv-station', loc);
+  document.querySelectorAll('.loc-btn').forEach(b => b.classList.toggle('active', b.dataset.loc === loc));
+  buildCalendar(loc);
+  buildStats(loc);
+  if (typeof buildChart    === 'function') buildChart(loc);
+}
+
+// Build location buttons
+const ctrl = document.getElementById('loc-controls');
+LOCATIONS.forEach(loc => {
+  const btn = document.createElement('button');
+  btn.className = 'loc-btn' + (loc === activeLoc ? ' active' : '');
+  btn.dataset.loc = loc;
+  btn.textContent = loc;
+  btn.onclick = () => setLocation(loc);
+  ctrl.appendChild(btn);
+});
+
+
+function buildChart(loc) {
+  const canvas = document.getElementById('hourly-chart');
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const wrap = canvas.parentElement;
+  canvas.width  = wrap.clientWidth * dpr;
+  canvas.height = wrap.clientHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const data = HOURLY[loc];
+  const vals = Array.from({length: 24}, (_, i) => data[i] ?? null);
+  const dataMax = Math.max(...vals.filter(v => v !== null), 5);
+  const maxVal = dataMax * 1.15;
+
+  // Layout
+  const padL = 36, padR = 8, padT = 16, padB = 18;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW = chartW / 24;
+
+  // Threshold bands (background)
+  const getY = v => padT + chartH - (v / maxVal) * chartH;
+
+  // noticeable band (5–30): subtle fill
+  const y30 = getY(Math.min(30, maxVal));
+  const y5  = getY(5);
+  const isDark = document.documentElement.dataset.theme === 'dark' ||
+    (!document.documentElement.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  // Draw horizontal grid lines + y-axis labels
+  const baseGrid = [5, 10, 20, 30, 50, 100, 150, 200, 300, 400, 500];
+  const gridVals = (() => {
+    const fmt = (v) => {
+      const mag = v >= 1 ? 0 : -Math.floor(Math.log10(v));
+      return parseFloat(v.toFixed(mag + 1));
+    };
+    const candidates = [];
+    for (const mult of [10, 5, 2, 1]) {
+      for (let exp = 3; exp >= -2; exp--) {
+        const step = mult * Math.pow(10, exp);
+        if (step <= 0) continue;
+        const allLines = [];
+        for (let i = 1; i * step < dataMax * 2; i++) {
+          const v = fmt(i * step);
+          if (allLines.length === 0 || v !== allLines[allLines.length - 1]) allLines.push(v);
+        }
+        const filtered = allLines.filter((v, i) => {
+          const prev = i > 0 ? allLines[i - 1] : 0;
+          return dataMax >= prev + (v - prev) / 2;
+        });
+        if (filtered.length >= 2 && filtered.length <= 5)
+          candidates.push([step, filtered]);
+      }
+    }
+    if (!candidates.length) return [fmt(dataMax)];
+    candidates.sort((a, b) =>
+      Math.abs(a[1].length - 4) - Math.abs(b[1].length - 4) ||
+      b[1].length - a[1].length ||
+      b[0] - a[0]
+    );
+    return candidates[0][1];
+  })();
+  ctx.font = '9px DM Mono, monospace';
+  ctx.textAlign = 'right';
+  gridVals.forEach(gv => {
+    const gy = getY(gv);
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.07)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(padL, gy);
+    ctx.lineTo(W - padR, gy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
+    ctx.fillText(gv, padL - 4, gy + 3);
+  });
+
+  // Draw bars (skip null / no-data hours)
+  vals.forEach((v, i) => {
+    if (v === null) return;
+    const x = padL + i * barW;
+    const bH = (v / maxVal) * chartH;
+    const y  = padT + chartH - bH;
+
+    let color;
+    if (v >= 30)     color = isDark ? '#c23b3b' : '#b03030';
+    else if (v >= 5) color = isDark ? '#c97b2a' : '#b06a20';
+    else             color = isDark ? '#3a7d50' : '#2e6840';
+
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x + 1, y, barW - 2, bH);
+    ctx.globalAlpha = 1;
+  });
+
+  // X labels — drawn on canvas, centered to each 3-hour bar group
+  const xLabels = ['12a','3a','6a','9a','12p','3p','6p','9p'];
+  ctx.font = '9px DM Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.3)';
+  xLabels.forEach((lbl, i) => {
+    const hour = i * 3;
+    const x = padL + (hour + 0.5) * barW;
+    ctx.fillText(lbl, x, padT + chartH + 13);
+  });
+}
+
+
+
+
+
+
+// Theme management
+(function() {
+  const root = document.documentElement;
+  const btnLight  = document.getElementById('btn-light');
+  const btnSystem = document.getElementById('btn-system');
+  const btnDark   = document.getElementById('btn-dark');
+  const btns = { light: btnLight, system: btnSystem, dark: btnDark };
+
+  // current preference: 'light' | 'dark' | 'system'
+  let pref = localStorage.getItem('tjrv-theme') || 'system';
+
+  function applyTheme() {
+    // Redraw chart after theme change so bar colors update
+    requestAnimationFrame(() => { if (typeof buildChart === 'function') buildChart(activeLoc); });
+    if (pref === 'system') {
+      delete root.dataset.theme;
+    } else {
+      root.dataset.theme = pref;
+    }
+    Object.entries(btns).forEach(([k, b]) => b.classList.toggle('active', k === pref));
+  }
+
+  btnLight.addEventListener('click',  () => { pref = 'light';  localStorage.setItem('tjrv-theme', pref); applyTheme(); });
+  btnSystem.addEventListener('click', () => { pref = 'system'; localStorage.removeItem('tjrv-theme');    applyTheme(); });
+  btnDark.addEventListener('click',   () => { pref = 'dark';   localStorage.setItem('tjrv-theme', pref); applyTheme(); });
+
+  // Keep system button appearance in sync when OS pref changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (pref === 'system') applyTheme();
+  });
+
+  applyTheme();
+})();
+
+
+setLocation(activeLoc);
+buildChart(activeLoc);
+
+// Redraw chart on resize (debounced 100ms)
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    if (selectedDay) buildChartForDay(selectedDay);
+    else buildChart(activeLoc);
+  }, 100);
+});
+</script>
+</body>
+</html>
