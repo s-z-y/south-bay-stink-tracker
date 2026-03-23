@@ -293,6 +293,7 @@ def main():
         print(f"  New rows added: {len(new_rows)}")
         unique = merged
 
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["date","time","datetime","location","ppb_h2s"])
         w.writeheader(); w.writerows(unique)

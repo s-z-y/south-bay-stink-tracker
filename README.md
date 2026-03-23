@@ -3,7 +3,7 @@
 A dashboard visualizing hydrogen sulfide (H₂S) air quality readings from three
 community monitoring stations in the Tijuana River Valley, San Diego.
 
-**Live site:** https://s-z-y.github.io/south-bay-stink-tracker
+**Live site:** https://yourusername.github.io/south-bay-stink-tracker *(update after deploy)*
 
 ## Data source
 

@@ -19,7 +19,7 @@
 
   html[data-theme="dark"] {
     --bg: #0d0f0e; --surface: #141716; --surface2: #1c1f1d; --border: #2a2e2c;
-    --text: #e8ebe9; --text2: #8a9490; --text3: #4d5552;
+    --text: #f2f5f3; --text2: #a8b5b0; --text3: #6a7875;
     --nodata: #1e2220; --accent: #4eba78;
     --stat-orange: #e06060; --stat-yellow: #d4903a; --stat-green: #4eba78;
     --tip-bg: #272c2a; --tip-border: #404845; --tip-text: #e8ebe9;
@@ -29,7 +29,7 @@
 
   html[data-theme="light"] {
     --bg: #f5f6f4; --surface: #ffffff; --surface2: #eaece9; --border: #d4d8d5;
-    --text: #1a1e1c; --text2: #5a6460; --text3: #9aa49f;
+    --text: #0a0e0c; --text2: #384541; --text3: #607370;
     --nodata: #dde1de; --accent: #1e7a45;
     --stat-orange: #b02a2a; --stat-yellow: #a05e10; --stat-green: #1e7a45;
     --tip-bg: #ffffff; --tip-border: #b0b8b4; --tip-text: #1a1e1c;
@@ -40,7 +40,7 @@
   @media (prefers-color-scheme: dark) {
     html:not([data-theme]) {
       --bg: #0d0f0e; --surface: #141716; --surface2: #1c1f1d; --border: #2a2e2c;
-      --text: #e8ebe9; --text2: #8a9490; --text3: #4d5552;
+      --text: #f2f5f3; --text2: #a8b5b0; --text3: #6a7875;
       --nodata: #1e2220; --accent: #4eba78;
       --stat-orange: #e06060; --stat-yellow: #d4903a; --stat-green: #4eba78;
     --tip-bg: #272c2a; --tip-border: #404845; --tip-text: #e8ebe9;
@@ -52,7 +52,7 @@
   @media (prefers-color-scheme: light) {
     html:not([data-theme]) {
       --bg: #f5f6f4; --surface: #ffffff; --surface2: #eaece9; --border: #d4d8d5;
-      --text: #1a1e1c; --text2: #5a6460; --text3: #9aa49f;
+      --text: #0a0e0c; --text2: #384541; --text3: #607370;
       --nodata: #dde1de; --accent: #1e7a45;
       --stat-orange: #b02a2a; --stat-yellow: #a05e10; --stat-green: #1e7a45;
     --tip-bg: #ffffff; --tip-border: #b0b8b4; --tip-text: #1a1e1c;
@@ -121,6 +121,20 @@
     min-width: 140px;
     box-shadow: 0 4px 16px var(--tip-shadow);
   }
+    border: 1px solid var(--tip-border);
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--tip-text);
+    white-space: nowrap;
+    z-index: 200;
+    pointer-events: none;
+    min-width: 140px;
+    box-shadow: 0 4px 16px var(--tip-shadow);
+  }
+
+  /* tooltip visibility and position controlled entirely by JS mouseenter/mouseleave */
 
   .tip-date {
     font-size: 10px;
@@ -456,7 +470,7 @@
     letter-spacing: 0.04em;
   }
 
-  .day-td { padding: 0; vertical-align: middle; }
+  .day-td { padding: 0; vertical-align: middle; position: relative; }
 
   .cell {
     width: 100%;
@@ -470,7 +484,7 @@
 
   .cell:hover { transform: scale(1.4); z-index: 10; filter: brightness(1.3); }
   .cell.selected { box-shadow: 0 0 0 2px var(--accent); z-index: 5; }
-  .cell:hover .tip { display: block; }
+  /* tooltip visibility is controlled by JS mouseenter/mouseleave */
 
   .cell.green  { background: var(--green); }
   .cell.yellow { background: var(--yellow); }
@@ -614,7 +628,7 @@
   <div class="header-top">
     <div class="eyebrow">Visualizing Tijuana River Valley H₂S Air Pollution Problem</div>
   </div>
-  <h1>South Bay <strong>Stink</strong> Tracker</h1>
+  <h1>San Diego South Bay <strong>Stink</strong> Tracker</h1>
   <p class="subtitle">When the South Bay smells like rotten eggs, the Tijuana River is usually to blame. Daily peak hydrogen sulfide (H₂S) readings from three community monitors near the Tijuana River. Color shows the highest hourly average each day. Learn more about the issue and monitoring program on the <a href="https://www.sdapcd.org/content/sdapcd/about/tj-river-valley/tjrv-air-quality-monitoring.html" target="_blank" style="color:inherit;text-decoration:underline">SDAPCD Tijuana River Valley page</a>.</p>
 </header>
 
@@ -881,23 +895,54 @@ function buildCalendar(loc) {
           } else {
             tip.innerHTML = `<div class="tip-date">${k}</div><div class="tip-row"><span class="tip-key">no data</span></div>`;
           }
-          // Clamp tooltip to avoid off-screen on first/last columns
-          if (d === 1) {
-            tip.style.left = '0';
-            tip.style.transform = 'translateX(0)';
-          } else if (d === 2) {
-            tip.style.left = '0';
-            tip.style.transform = 'translateX(-20%)';
-          } else if (d === 31) {
-            tip.style.left = 'auto';
-            tip.style.right = '0';
-            tip.style.transform = 'translateX(0)';
-          } else if (d === 30) {
-            tip.style.left = 'auto';
-            tip.style.right = '0';
-            tip.style.transform = 'translateX(20%)';
-          }
-          c.appendChild(tip);
+                    // Dynamic clamping: measure actual rendered positions on hover and
+          // set an explicit left offset in px so the tip stays within the viewport.
+          c.addEventListener('mouseenter', () => {
+            // Show at default position first so dimensions are measurable
+            tip.style.bottom = 'calc(100% + 6px)';
+            tip.style.top    = 'auto';
+            tip.style.left   = '50%';
+            tip.style.right  = '';
+            tip.style.transform = 'translateX(-50%)';
+            tip.style.display = 'block';
+
+            const tipW  = tip.offsetWidth;
+            const tipH  = tip.offsetHeight;
+            const tdR   = td.getBoundingClientRect();
+            const vw    = document.documentElement.clientWidth;
+            const vh    = document.documentElement.clientHeight;
+            const pad   = 4;
+
+            // ── Vertical: prefer above, but never cover the chart ──────────────
+            // "Above" means the tip's top edge is at tdR.top - gap - tipH
+            const chartEl  = document.querySelector('.chart-wrap');
+            const chartBottom = chartEl ? chartEl.getBoundingClientRect().bottom : 0;
+            const gap = 6;
+            const tipTopIfAbove    = tdR.top - gap - tipH;     // viewport y of tip top edge when shown above
+            const tipBottomIfBelow = tdR.bottom + gap + tipH;  // viewport y of tip bottom edge when shown below
+
+            const showBelow = tipTopIfAbove < chartBottom + pad   // would overlap chart
+                           || tipTopIfAbove < pad;                 // would go off top of screen
+
+            if (showBelow) {
+              tip.style.bottom = 'auto';
+              tip.style.top    = `calc(100% + ${gap}px)`;  // below the cell
+            } else {
+              tip.style.bottom = `calc(100% + ${gap}px)`;  // above the cell
+              tip.style.top    = 'auto';
+            }
+
+            // ── Horizontal: centre over td, clamped to viewport ───────────────
+            let tipLeft = tdR.left + tdR.width / 2 - tipW / 2;
+            tipLeft = Math.max(pad, Math.min(tipLeft, vw - tipW - pad));
+            tip.style.left      = '0';
+            tip.style.right     = '';
+            tip.style.transform = `translateX(${tipLeft - tdR.left}px)`;
+          });
+          c.addEventListener('mouseleave', () => {
+            tip.style.display = '';
+          });
+          td.appendChild(tip);  // tip lives in td, outside the scaled .cell
           td.appendChild(c);
         }
         tr.appendChild(td);
