@@ -1,20 +1,24 @@
 """
 fetch_tjrv_latest.py
 ====================
-Fetches H2S data directly from the SDAPCD Power BI API with correct pagination.
+Fetches H2S data from two sources and merges them:
+  1. SDAPCD Power BI API  — historical data, refreshed every ~3 hours
+  2. SDAPCD web page      — today's data, refreshed more frequently
 
 Usage:
-    python fetch_tjrv_latest.py              # fetches last 2 days
-    python fetch_tjrv_latest.py --days 60    # fetches last 60 days
-    python fetch_tjrv_latest.py --days 60 --out latest.csv
+    python fetch_tjrv_latest.py              # fetches last 2 days + today's web data
+    python fetch_tjrv_latest.py --days 60    # fetches last 60 days + today's web data
     python fetch_tjrv_latest.py --days 2 --out data/tjrv_h2s.csv --append
+    python fetch_tjrv_latest.py --no-web     # skip the web scrape, Power BI only
 """
 
 import json, csv, sys, argparse, os
 import urllib.request, urllib.error
 from datetime import datetime, timedelta
+from html.parser import HTMLParser
 
 URL = "https://wabi-us-gov-iowa-api.analysis.usgovcloudapi.net/public/reports/querydata?synchronous=true"
+WEB_URL = "https://airquality.sdapcd.org/air/data/h2s.htm"
 
 HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -220,11 +224,186 @@ def make_restart_tokens(last_row, ds_locs):
     return [[date_token, time_token, loc_token, ppb_token]]
 
 
+def fetch_web():
+    """
+    Scrape today's H2S readings from the SDAPCD daily parameter report page.
+    Returns a list of records in the same format as the Power BI fetcher.
+    Non-numeric values (M = maintenance, blank = not yet posted) are skipped.
+    The 3 summary columns (Avg, Max, Hr. of) at the right are ignored.
+    """
+    print(f"Fetching web page: {WEB_URL}")
+    req = urllib.request.Request(
+        WEB_URL,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; sdapcd-scraper/1.0)"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            html = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.URLError as e:
+        print(f"  Web fetch error: {e.reason} — skipping web source")
+        return []
+
+    # ── Parse all <td> and <tr> cells from the HTML ───────────────────────────
+    class TableParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.rows = []
+            self._row = []
+            self._in_td = False
+            self._cell = ""
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "tr":
+                self._row = []
+            elif tag in ("td", "th"):
+                self._in_td = True
+                self._cell = ""
+
+        def handle_endtag(self, tag):
+            if tag in ("td", "th"):
+                # Normalise non-breaking spaces and collapse whitespace
+                cell = self._cell.replace("\xa0", " ").strip()
+                self._row.append(cell)
+                self._in_td = False
+                self._cell = ""
+            elif tag == "tr":
+                if self._row:
+                    self.rows.append(self._row)
+
+        def handle_data(self, data):
+            if self._in_td:
+                self._cell += data
+
+        def handle_entityref(self, name):
+            if self._in_td and name == "nbsp":
+                self._cell += " "
+
+    parser = TableParser()
+    parser.feed(html)
+
+    # ── Extract the date from the page ────────────────────────────────────────
+    page_date = None
+    for row in parser.rows:
+        for cell in row:
+            if cell and "/" in cell:
+                try:
+                    page_date = datetime.strptime(cell, "%m/%d/%Y").strftime("%Y-%m-%d")
+                    break
+                except ValueError:
+                    continue
+        if page_date:
+            break
+
+    if not page_date:
+        print("  Could not find date on web page — skipping web source")
+        return []
+
+    print(f"  Web page date: {page_date}")
+
+    # ── Find the header row containing hour numbers 0..23 ─────────────────────
+    # Locate the row with a run of consecutive integers "0","1","2",...
+    # hour_col_start is the column index of "0" in that row.
+    hour_row_idx   = None
+    hour_col_start = None
+
+    for i, row in enumerate(parser.rows):
+        for j, cell in enumerate(row):
+            if cell == "0" and all(
+                j + h < len(row) and row[j + h] == str(h)
+                for h in range(8)
+            ):
+                hour_row_idx   = i
+                hour_col_start = j
+                break
+        if hour_row_idx is not None:
+            break
+
+    if hour_row_idx is None:
+        print("  Could not find hour header row — skipping web source")
+        return []
+
+    # ── Parse data rows that follow the header ────────────────────────────────
+    # The HTML uses merged cells so <td> counts differ per row — we cannot use
+    # fixed column offsets derived from the header row.
+    #
+    # Instead, for each row we:
+    #   1. Find the station name: the last non-numeric, non-header cell that
+    #      looks like a proper name (len >= 4 and contains a space).
+    #   2. Treat the columns immediately following it as hour values 0, 1, 2...
+    #   3. Stop 3 cols from the end of the row to exclude Avg/Max/Hr.of summary.
+    #   4. Skip blanks (not yet posted) and non-numeric status codes (M, ND…).
+    #
+    # Station names are taken exactly as-is — new stations are picked up
+    # automatically without any code change.
+
+    SKIP = {'', 'parameter', 'sitename', '07 h2s ppb', 'summary',
+            'avg', 'max', 'hr. of', 'hr.of'}
+
+    def is_station_name(s):
+        """Station names are multi-word (contain a space) and at least 4 chars."""
+        return len(s) >= 4 and ' ' in s
+
+    records = []
+    current_loc = None
+
+    for row in parser.rows[hour_row_idx + 1:]:
+        # Find station name and where data starts
+        station    = None
+        data_start = None
+        for j, cell in enumerate(row):
+            if cell.lower() in SKIP:
+                continue
+            try:
+                float(cell)
+                # Numeric: data starts here (at the hour-0 column for this row)
+                if station is not None and data_start is None:
+                    data_start = j
+                # Continue — subsequent numeric cells are more data
+            except ValueError:
+                if cell and is_station_name(cell):
+                    station    = cell
+                    data_start = None  # reset; data follows after this
+
+        if station is not None:
+            current_loc = station
+
+        if current_loc is None or data_start is None:
+            continue  # no data on this row
+
+        # Read up to 24 hour values; exclude last 3 cols (Avg, Max, Hr. of)
+        data_end = len(row) - 3
+        hour = 0
+        for col in range(data_start, data_end):
+            if hour >= 24:
+                break
+            val = row[col]
+            if not val:
+                hour += 1  # blank = hour not yet posted, advance hour counter
+                continue
+            try:
+                ppb = float(val)
+                time_str = f"{hour:02d}:00"
+                records.append({
+                    "date":     page_date,
+                    "time":     time_str,
+                    "datetime": f"{page_date} {time_str}",
+                    "location": current_loc,
+                    "ppb_h2s":  ppb,
+                })
+            except ValueError:
+                pass  # M, ND, or other status code — skip but advance hour
+            hour += 1
+
+    print(f"  Web page: {len(records)} records ({page_date})")
+    return records
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=2, help="Days back to fetch (min 2)")
     ap.add_argument("--out", default="tjrv_latest.csv")
     ap.add_argument("--append", action="store_true", help="Merge new rows into existing CSV")
+    ap.add_argument("--no-web", action="store_true", help="Skip the web page scrape, Power BI only")
     args = ap.parse_args()
 
     if args.days < 2:
@@ -276,6 +455,14 @@ def main():
         _key_warning()
         sys.exit(1)
 
+    # ── Fetch today's data from the web page and merge ────────────────────────
+    if not args.no_web:
+        web_records = fetch_web()
+        all_records.extend(web_records)
+    else:
+        print("Skipping web page scrape (--no-web)")
+
+    # ── Deduplicate: Power BI wins on conflict (it comes first) ───────────────
     seen = set(); unique = []
     for r in all_records:
         k = (r["date"], r["time"], r["location"])

@@ -11,7 +11,8 @@ Usage:
 
 import csv, json, argparse, os
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, timezone, date
+from zoneinfo import ZoneInfo
 
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
@@ -101,17 +102,30 @@ for loc in LOCATIONS:
             hour_vals[hour].append(float(r['ppb_h2s']))
     HOURLY[loc] = {str(h): round(sum(v) / len(v), 2) for h, v in hour_vals.items()}
 
-# ── Snapshot date ──────────────────────────────────────────────────────────────
+# ── Run time (Pacific, DST-aware) ─────────────────────────────────────────────
 
-all_datetimes = [r['datetime'] for r in rows if r.get('datetime', '').strip()]
-if all_datetimes:
-    latest_dt_str = max(all_datetimes)
-    latest_dt = datetime.strptime(latest_dt_str, '%Y-%m-%d %H:%M')
-else:
-    latest_dt = datetime.utcnow()
-snapshot_label = latest_dt.strftime('%b %-d %Y at %-I:%M %p')  # e.g. "Mar 19 2026 at 1:00 PM"
+pacific = ZoneInfo('America/Los_Angeles')
+run_dt  = datetime.now(tz=timezone.utc).astimezone(pacific)
+run_label = run_dt.strftime('%b %-d %Y at %-I:%M %p %Z')  # e.g. "Mar 26 2026 at 9:00 AM PDT"
 
-print(f'Latest data datetime: {latest_dt} → "{snapshot_label}"')
+print(f'Run time: {run_label}')
+
+# ── Latest sample datetime per location (for JS) ───────────────────────────────
+
+latest_sample = {}
+for loc in LOCATIONS:
+    loc_datetimes = [
+        r['datetime'] for r in rows
+        if r['location'] == loc and r.get('datetime', '').strip() and r.get('ppb_h2s', '').strip()
+    ]
+    if loc_datetimes:
+        latest_dt_str = max(loc_datetimes)
+        latest_dt = datetime.strptime(latest_dt_str, '%Y-%m-%d %H:%M')
+        latest_sample[loc] = latest_dt.strftime('%b %-d %Y at %-I:%M %p')
+    else:
+        latest_sample[loc] = '—'
+
+print(f'Latest samples: {latest_sample}')
 
 # ── Serialise constants ────────────────────────────────────────────────────────
 
@@ -123,6 +137,7 @@ data_block = (
     f'const DETAIL = {json.dumps(DETAIL, separators=sep)};\n'
     f'const HOURLY_BY_DAY = {json.dumps(HOURLY_BY_DAY, separators=sep)};\n'
     f'const HOURLY = {json.dumps(HOURLY, separators=sep)};\n'
+    f'const LATEST_SAMPLE = {json.dumps(latest_sample, separators=sep)};\n'
 )
 
 print(f'Data block size: {len(data_block) / 1024:.1f} KB')
@@ -134,7 +149,7 @@ with open(args.template) as f:
 
 assert '{{DATA_BLOCK}}' in template, 'template missing {{DATA_BLOCK}} placeholder'
 html = template.replace('{{DATA_BLOCK}}', data_block)
-html = html.replace('{{SNAPSHOT_DATE}}', snapshot_label)
+html = html.replace('{{RUN_TIME}}', run_label)
 
 # ── Write output ───────────────────────────────────────────────────────────────
 

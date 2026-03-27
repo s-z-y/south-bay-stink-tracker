@@ -416,7 +416,7 @@
     inset: 0;
     background: var(--bg);
     opacity: 0.65;
-    border-radius: 2px;
+    border-radius: inherit;
     pointer-events: none;
     transition: opacity 0.15s;
   }
@@ -656,7 +656,7 @@
 <div id="calendar"></div>
 
 <footer>
-  <p class="subtitle">Data source: <a href="https://www.sdapcd.org/content/sdapcd/about/tj-river-valley/tjrv-air-quality-monitoring.html" target="_blank" style="color:inherit">San Diego Air Pollution Control District</a> · Hourly averages in ppb · <span style="opacity:0.6">last updated {{SNAPSHOT_DATE}} · <span style="opacity:0.5">your theme and station preference are saved in your browser</span></span></p>
+  <p class="subtitle">Data source: <a href="https://www.sdapcd.org/content/sdapcd/about/tj-river-valley/tjrv-air-quality-monitoring.html" target="_blank" style="color:inherit">San Diego Air Pollution Control District</a> · Hourly averages in ppb · <span style="opacity:0.6">last run {{RUN_TIME}} · latest sample <span id="latest-sample">—</span> · <span style="opacity:0.5">your theme and station preference are saved in your browser</span></span></p>
   <div class="stats-header" style="margin-top:20px;justify-content:flex-start" id="theme-toggle" role="group" aria-label="Color theme">
     <button class="view-btn" id="btn-light">Light</button>
     <button class="view-btn" id="btn-system">Auto</button>
@@ -1231,6 +1231,11 @@ function buildChartForDay(date) {
   });
 })();
 
+function updateLatestSample(loc) {
+  const el = document.getElementById('latest-sample');
+  el.textContent = (LATEST_SAMPLE && LATEST_SAMPLE[loc]) ? LATEST_SAMPLE[loc] : '—';
+}
+
 function setLocation(loc) {
   activeLoc = loc;
   selectedDay = null;
@@ -1240,6 +1245,7 @@ function setLocation(loc) {
   document.querySelectorAll('.loc-btn').forEach(b => b.classList.toggle('active', b.dataset.loc === loc));
   buildCalendar(loc);
   buildStats(loc);
+  updateLatestSample(loc);
   if (typeof buildChart    === 'function') buildChart(loc);
 }
 
